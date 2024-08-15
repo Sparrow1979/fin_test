@@ -1,0 +1,49 @@
+version: '3.8'
+
+services:
+  django:
+    container_name: django
+    build:
+      context: .
+      dockerfile: finlite/Dockerfile
+    command: >
+        sh -c "until nc -z db 3306; do echo 'Waiting for db...'; sleep 5; done &&
+        /usr/src/app/venv/bin/python finlite/manage.py migrate &&
+        /usr/src/app/venv/bin/python finlite/manage.py runserver 0.0.0.0:8000"
+
+    volumes:
+      - ./finlite:/usr/src/app/finlite
+    ports:
+      - "8001:8000"
+    depends_on:
+      - db
+    environment:
+      - DB_NAME=finlite
+      - DB_USER=dp
+      - DB_PASSWORD=finlitetest1
+      - DB_HOST=db
+      - MYSQL_ROOT_PASSWORD=itest
+    networks:
+      - backend
+
+  db:
+    image: mariadb:latest
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+    networks:
+      - backend
+    ports:
+      - "3309:3306"
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./finlite/finlite/mariadb_config.cnf:/etc/mysql/mariadb.cnf
+
+networks:
+  backend:
+    driver: bridge
+
+volumes:
+  db_data:
